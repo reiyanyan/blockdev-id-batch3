@@ -1,0 +1,3 @@
+[submodule "BlockDevID/ERC-Suite/lib/forge-std"]
+	path = BlockDevID/ERC-Suite/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
