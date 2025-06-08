@@ -142,7 +142,7 @@ contract CampusCredit is ERC20, ERC20Burnable, Pausable, AccessControl {
         address from,
         address to,
         uint256 value
-    ) internal override {
+    ) internal override(ERC20) {
         // TODO: Add pause check
         // super._beforeTokenTransfer(from, to, amount);
         // require(!paused(), "Token transfers paused");
