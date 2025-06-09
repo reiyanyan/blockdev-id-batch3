@@ -143,7 +143,9 @@ contract CourseBadge is ERC1155, AccessControl, Pausable, ERC1155Supply {
             bytes(tokenInfo[eventId].name).length > 0,
             "Event doesn't exist"
         );
-        for (uint i = 0; i < attendees.length; i++) {
+
+        uint length = attendees.length;
+        for (uint i = 0; i < length; i++) {
             address curr = attendees[i];
             ERC1155._mint(curr, eventId, amount, "");
 
@@ -220,11 +222,16 @@ contract CourseBadge is ERC1155, AccessControl, Pausable, ERC1155Supply {
         uint256[] memory amounts
     ) internal override(ERC1155, ERC1155Supply) whenNotPaused {
         // TODO: Check transferability for each token
-        // for (uint i = 0; i < ids.length; i++) {
-        //     if (from != address(0) && to != address(0)) { // Not mint or burn
-        //         require(tokenInfo[ids[i]].isTransferable, "Token not transferable");
-        //     }
-        // }
+        uint length = ids.length;
+        for (uint i = 0; i < length; i++) {
+            if (from != address(0) && to != address(0)) {
+                // Not mint or burn
+                require(
+                    tokenInfo[ids[i]].isTransferable,
+                    "Token not transferable"
+                );
+            }
+        }
 
         super._update(from, to, ids, amounts);
     }
