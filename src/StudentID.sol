@@ -142,8 +142,8 @@ contract StudentID is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
 
         require(isExpired(tokenId), "WHEN TGE SIR");
 
-        address owner = ERC721.ownerOf(tokenId);
-        string memory nim = studentData[tokenId].nim;
+        // address owner = ERC721.ownerOf(tokenId);
+        // string memory nim = studentData[tokenId].nim;
 
         ERC721._burn(tokenId);
 
@@ -198,11 +198,20 @@ contract StudentID is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
         // Only allow minting (from == address(0)) and burning (to == address(0))
         // require(from == address(0) || to == address(0), "SID is non-transferable");
         // super._beforeTokenTransfer(from, to, tokenId, batchSize);
-        require(
-            from == address(0) || to == address(0),
-            "SID is non-transferable"
-        );
-        ERC721._update(from, tokenId, to);
+
+        /* ---------------------------------- burn ---------------------------------- */
+        /**
+         * ref: https://github.com/OpenZeppelin/openzeppelin-contracts/issues/4856#issuecomment-1910957242
+         */
+        if (to == address(0)) {
+            delete studentData[tokenId];
+            delete nimToTokenId[studentData[tokenId].nim];
+            delete addressToTokenId[ownerOf(tokenId)];
+        } else {
+            require(from == address(0), "SID is non-transferable");
+        }
+
+        return ERC721._update(from, tokenId, to);
     }
 
     // Override functions required untuk multiple inheritance
@@ -216,13 +225,5 @@ contract StudentID is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
         bytes4 interfaceId
     ) public view override(ERC721, ERC721URIStorage) returns (bool) {
         return super.supportsInterface(interfaceId);
-    }
-
-    function _burn(uint256 tokenId) internal override(ERC721) {
-        super._burn(tokenId);
-        // TODO: Clean up student data when burning
-        delete studentData[tokenId];
-        delete nimToTokenId[studentData[tokenId].nim];
-        delete addressToTokenId[ownerOf(tokenId)];
     }
 }
