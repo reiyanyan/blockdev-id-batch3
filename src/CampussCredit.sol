@@ -50,13 +50,13 @@ contract CampusCredit is ERC20, ERC20Burnable, Pausable, AccessControl {
         // 4. Consider initial mint untuk treasury
 
         /* ------------------ super will search from linear inherit ----------------- */
-        super.grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        super._grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
         /* -------------------------------- explicit -------------------------------- */
         AccessControl.grantRole(PAUSER_ROLE, msg.sender);
         AccessControl.grantRole(MINTER_ROLE, msg.sender);
 
-        ERC20._mint(msg.sender, 1_000);
+        ERC20._mint(msg.sender, 1_000 * 10 ** decimals());
     }
 
     /**
@@ -69,7 +69,7 @@ contract CampusCredit is ERC20, ERC20Burnable, Pausable, AccessControl {
         Pausable._pause();
     }
 
-    function unpause() public {
+    function unpause() public rolePolicy(PAUSER_ROLE) {
         // TODO: Implement unpause
         Pausable._unpause();
     }
@@ -93,7 +93,7 @@ contract CampusCredit is ERC20, ERC20Burnable, Pausable, AccessControl {
     function registerMerchant(
         address merchant,
         string memory name
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) validMerchant(merchant) {
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         // TODO: Register merchant untuk accept payments
         merchants[merchant] = name;
     }
@@ -108,6 +108,8 @@ contract CampusCredit is ERC20, ERC20Burnable, Pausable, AccessControl {
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         // TODO: Set spending limit
         dailySpendingLimit[student] = limit;
+        spentToday[student] = 0;
+        lastSpendingReset[student] = timeToDayID();
     }
 
     /**
@@ -119,8 +121,19 @@ contract CampusCredit is ERC20, ERC20Burnable, Pausable, AccessControl {
         // Update spent amount
         // Then do normal transfer
 
-        checker(_to, _amount);
-        updater(_to, _amount);
+        // if a new day
+        uint256 today = timeToDayID();
+        if (lastSpendingReset[msg.sender] != today) {
+            lastSpendingReset[msg.sender] = today;
+            spentToday[msg.sender] = 0;
+        }
+
+        uint willSpent = spentToday[msg.sender] + _amount;
+        uint limit = dailySpendingLimit[msg.sender];
+        require(willSpent <= limit, "Exceeds daily limiy");
+
+        // update
+        spentToday[msg.sender] += _amount;
 
         // transfer
         ERC20.transfer(_to, _amount);
@@ -165,8 +178,19 @@ contract CampusCredit is ERC20, ERC20Burnable, Pausable, AccessControl {
         // Mint cashback to sender
         require(amount > 0, "Amount must be > 0");
 
-        checker(merchant, amount);
-        updater(merchant, amount);
+        // if a new day
+        uint256 today = timeToDayID();
+        if (lastSpendingReset[msg.sender] != today) {
+            lastSpendingReset[msg.sender] = today;
+            spentToday[msg.sender] = 0;
+        }
+
+        uint willSpent = spentToday[msg.sender] + amount;
+        uint limit = dailySpendingLimit[msg.sender];
+        require(willSpent <= limit, "Exceeds daily limiy");
+
+        // update
+        spentToday[msg.sender] += amount;
 
         ERC20.transfer(merchant, amount);
 
@@ -177,25 +201,8 @@ contract CampusCredit is ERC20, ERC20Burnable, Pausable, AccessControl {
     /* -------------------------------------------------------------------------- */
     /*                                   Helper                                   */
     /* -------------------------------------------------------------------------- */
-    function checker(address _to, uint _amount) internal view {
-        uint256 today = block.timestamp / 1 days;
-        if (lastSpendingReset[_to] != today) {
-            require(_amount <= dailySpendingLimit[_to], "Exceeds daily limit");
-        } else {
-            require(
-                spentToday[_to] + _amount <= dailySpendingLimit[_to],
-                "Exceeds daily limit"
-            );
-        }
-    }
 
-    function updater(address _to, uint _amount) internal {
-        uint256 today = block.timestamp / 1 days;
-        if (lastSpendingReset[_to] != today) {
-            spentToday[_to] = _amount;
-            lastSpendingReset[_to] = today;
-        } else {
-            spentToday[_to] += _amount;
-        }
+    function timeToDayID() internal view returns (uint) {
+        return block.timestamp / 1 days;
     }
 }

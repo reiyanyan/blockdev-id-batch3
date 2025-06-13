@@ -78,18 +78,25 @@ contract StudentID is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
 
         uint tokenId = ++_nextTokenId;
 
-        ERC721._safeMint(_to, tokenId);
+        ERC721._mint(_to, tokenId);
         ERC721URIStorage._setTokenURI(tokenId, _uri);
+
+        uint _expiryDate = (4 * 365 days + block.timestamp) / 1 days;
 
         studentData[tokenId] = StudentData({
             nim: _nim,
             name: _name,
             major: _major,
-            enrollmentYear: 1970 + (block.timestamp / 31556926),
-            expiryDate: 4 * 365 days + block.timestamp,
+            enrollmentYear: block.timestamp / 365 days,
+            expiryDate: _expiryDate,
             isActive: true,
             semester: 1
         });
+
+        nimToTokenId[_nim] = tokenId;
+        addressToTokenId[_to] = tokenId;
+
+        emit StudentIDIssued(tokenId, _nim, _to, _expiryDate);
     }
 
     /**
@@ -125,6 +132,11 @@ contract StudentID is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
         // TODO: Update active status
         // If inactive, maybe reduce privileges
         studentData[tokenId].isActive = isActive;
+
+        if (!isActive) {
+            ERC721._burn(tokenId);
+        }
+
         emit StudentStatusUpdated(tokenId, isActive);
     }
 
@@ -140,10 +152,19 @@ contract StudentID is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
         // Clean up mappings
         // Emit event
 
-        require(isExpired(tokenId), "WHEN TGE SIR");
+        require(isExpired(tokenId), "ID expired");
 
-        // address owner = ERC721.ownerOf(tokenId);
-        // string memory nim = studentData[tokenId].nim;
+        require(
+            ERC721.ownerOf(tokenId) == msg.sender ||
+                Ownable.owner() == msg.sender,
+            "Only token owner or contract owner"
+        );
+
+        address tokenOwner = ERC721.ownerOf(tokenId);
+
+        delete nimToTokenId[studentData[tokenId].nim];
+        delete addressToTokenId[tokenOwner];
+        delete studentData[tokenId];
 
         ERC721._burn(tokenId);
 
@@ -174,7 +195,10 @@ contract StudentID is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
         tokenId = nimToTokenId[nim];
         require(tokenId != 0, "NIM not found :(");
 
-        return (ERC721.ownerOf(tokenId), tokenId, studentData[tokenId]);
+        owner = ERC721.ownerOf(tokenId);
+        data = studentData[tokenId];
+
+        return (owner, tokenId, data);
     }
 
     /* -------------------------------------------------------------------------- */

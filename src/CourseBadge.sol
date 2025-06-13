@@ -288,7 +288,7 @@ contract CourseBadge is ERC1155, AccessControl, Pausable, ERC1155Supply {
             issuer: msg.sender
         });
 
-        _tokenURIs[id] = "";
+        // _tokenURIs[id] = "";
         ERC1155._mint(student, id, 1, "");
         earnedAt[id][student] = block.timestamp;
         studentBadges[student].push(id);
